@@ -6,10 +6,29 @@ import pathlib
 from icalendar import Calendar, Event
 from openpyxl import load_workbook
 import json
+import os
+
+####
+####
+bf_start_date_and_time = "11-01-2023 0700"
+hh_start_date_and_time = "11-08-2023 1600"
+
+bf_repeat = 3	# number of weeks to repeat breakfast
+hh_repeat = 2	# number of weeks to repeat happy hour
+num_weeks = 10	# maximum number of weeks to display
+
+breakfast_filename = "breakfast.json"	# input dict files
+happyhour_filename = "happyhour.json"	# event dict files
+events_csv = "events.csv"	# tab delimited file name
+events_excel = "events.xlsx"	# excel file name
+sheet_name = "Event Schedule"	# excel sheet name
+ics_calendar_file = "BFHH_Schedule"	# combined ics file for calendar import, leave the extension off, we do it below
+####
+####
 
 
 """
-This script reads in text files that contain a dictionary 
+This script reads in text files that contain a json 
 of "regions" (north, south) with location names and associated
 addresses to create an event schedule based on the repeat of 
 each type of event, and randomizes the location.
@@ -20,39 +39,27 @@ and you'll see how the files are structured.
 Modify this to use these dates and times to create a schedule
 bf = breakfast hh = happy hour
 """
-bf_start_date_and_time = "07-11-2023 0700"
-hh_start_date_and_time = "07-21-2023 1600"
 
-breakfast_filename = "breakfast.txt"	# input dict files
-happyhour_filename = "happyhour.txt"	# event dict files
-events_csv = "events.csv"	# tab delimited file name
-events_excel = "events.xlsx"	# excel file name
-sheet_name = "Event Schedule"	# excel sheet name
+
 
 
 local_path = pathlib.Path(__file__).parent
-
-
 breakfast_fullpath = pathlib.Path.joinpath(local_path, breakfast_filename)
 happyhour_fullpath = pathlib.Path.joinpath(local_path, happyhour_filename)
 excel_fullpath = pathlib.Path.joinpath(local_path, events_excel)
-
-
-bf_repeat = 3	# number of weeks to repeat breakfast
-hh_repeat = 2	# number of weeks to repeat happy hour
-num_weeks = 10	# maximum number of weeks to display
 
 if not pathlib.Path.is_file(breakfast_fullpath) and not pathlib.Path.is_file(happyhour_fullpath):
 	print("\nOne or both event files do not exist, exiting...\n\n")
 	exit()
 
 with open(breakfast_fullpath, 'r') as bfile:
-	hh = bfile.read().replace("\'", "\"")	# replace single with double so it's proper JSON
-	happy_hour = json.loads(hh)
+	happy_hour = json.loads(bfile.read())
 
 with open(happyhour_fullpath, 'r') as hfile:
-	bf = hfile.read().replace("\'", "\"")	# replace single with double so it's proper JSON
-	breakfast = json.loads(bf)
+	breakfast = json.loads(hfile.read())
+
+def clear():
+    os.system("cls" if os.name == "nt" else "clear")
 
 
 def get_dates_every_n_weeks(start_date: str, repeat: int, num_weeks: int) -> None:
@@ -146,6 +153,7 @@ def create_ics_file(date: datetime, location: str, address: str):
 	and creates an individual icalendar file saved as 
 	location_date.ics : ie... Restaurant_01-01-2001.ics
 	"""
+	global ical_path
 	ical_path = local_path / 'ical'
 	ical_path.mkdir(parents=True, exist_ok=True)
 
@@ -163,14 +171,50 @@ def create_ics_file(date: datetime, location: str, address: str):
 	with open(ical_file_path, 'wb') as file:
 		file.write(cal.to_ical())
 	
+def generate_combined_ics():
+	"""
+	The original version did not contain this function as I hadn't
+	thought about making a single file to upload the calendar.
+	This will iterate over the ical directory, combine all of the file
+	contents into a single file and then delete each individual file 
+	after processing.
+	"""
+	today = datetime.now()
+	output_filename = f'{ics_calendar_file}_{today.strftime("%m-%d-%Y")}.ics'
+	ical_path_obj = pathlib.Path(ical_path)
+	output_file_path = ical_path_obj.joinpath(output_filename)
+	combined_calendar = Calendar()
+
+	ics_files = [f for f in ical_path_obj.glob("*.ics")]
+
+	for ics_file in ics_files:
+		with open(ics_file, "rb") as file:
+			calendar_data = file.read()
+			calendar = Calendar.from_ical(calendar_data)
+
+			for component in calendar.walk("VEVENT"):
+				combined_calendar.add_component(component)
+
+		os.remove(ics_file)
+
+	with open(output_file_path, "wb") as output_file:
+		output_file.write(combined_calendar.to_ical())
+
+
 
 def main():
+	clear()
 	global dates
 
-	dates = []
-	print("\n\n  Breakfast Schedule")
-	get_dates_every_n_weeks(bf_start_date_and_time, bf_repeat, num_weeks)
-	bf_df = generate_calendar(breakfast)
+	what_to_schedule = input("Breakfast and Happy Hour? (y/n) [y]: ")
+	what_to_schedule = what_to_schedule.lower()
+	if what_to_schedule == "": what_to_schedule = "y"
+
+	if what_to_schedule == "y":
+		dates = []
+		print("\n\n  Breakfast Schedule")
+		get_dates_every_n_weeks(bf_start_date_and_time, bf_repeat, num_weeks)
+		bf_df = generate_calendar(breakfast)
 
 	dates = []	# clears previous list for happy hour
 	print("\n\n  Happy Hour Schedule")
@@ -179,14 +223,20 @@ def main():
 
 	"""
 	We are creating a list of both dataframes above, and doing a concat on
-	the two dataframes, ignoring the indexes and then shipping them off 
-	for file creation (csv, xlsx)
+	the two dataframes unless we are only doing happy_hour, ignoring the indexes
+	and then shipping them off for file creation (csv, xlsx)
 	"""
-	concat_df = [bf_df, hh_df]
+	
+	if what_to_schedule == "y":
+		concat_df = [bf_df, hh_df]
+	else:
+		concat_df = [hh_df]
+
 	final_df = pd.concat(concat_df, axis=0, join='outer', ignore_index=True)
 
 	c,x = create_csv_and_excel(final_df)
 	print(f"\n\nFiles Saved :\n{c}\n{x}\n\n")
+	generate_combined_ics()
 
 
 if __name__ == "__main__":

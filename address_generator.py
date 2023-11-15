@@ -1,4 +1,5 @@
 from barnum import gen_data
+import json
 import random_address
 import random
 import pathlib
@@ -14,8 +15,8 @@ understands.  Writes it to to files for it to load to schedule things.
 
 ###
 
-breakfast_filename = "breakfast.txt"
-happyhour_filename = "happyhour.txt"
+breakfast_filename = "breakfast.json"
+happyhour_filename = "happyhour.json"
 
 ###
 
@@ -95,9 +96,11 @@ def main():
 
 	# have to cast to str othewise we can't write the files
 	with open(breakfast_fullpath, "w") as bfile:
-		bfile.write(str(breakfast).replace("\'", "\""))	# replace single with double so it's proper JSON
+		json.dump(breakfast, bfile, indent=2)
+		# bfile.write(str(breakfast).replace("\'", "\""))	# replace single with double so it's proper JSON
 	with open(happyhour_fullpath, "w") as hfile:
-		hfile.write(str(happyhour).replace("\'", "\""))	# replace single with double so it's proper JSON
+		json.dump(happyhour, hfile, indent=2)
+		# hfile.write(str(happyhour).replace("\'", "\""))	# replace single with double so it's proper JSON
 
 if __name__ == "__main__":
 	main()
