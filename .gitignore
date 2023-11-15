@@ -1,5 +1,6 @@
-breakfast.json
-happyhour.json
-events.csv
-events.xlsx
-ical/
+event_files/
+*.json
+*.json
+*.csv
+*.xlsx
+

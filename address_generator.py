@@ -21,7 +21,8 @@ happyhour_filename = "happyhour.json"
 ###
 
 
-local_path = pathlib.Path(__file__).parent
+local_path = pathlib.Path(__file__).parent / "event_files"
+local_path.mkdir(parents=True, exist_ok=True)
 breakfast_fullpath = pathlib.Path.joinpath(local_path, breakfast_filename)
 happyhour_fullpath = pathlib.Path.joinpath(local_path, happyhour_filename)
 
@@ -93,14 +94,10 @@ def main():
 		happyhour["north"].update(gen_event_location())
 		happyhour["south"].update(gen_event_location())
 		
-
-	# have to cast to str othewise we can't write the files
 	with open(breakfast_fullpath, "w") as bfile:
 		json.dump(breakfast, bfile, indent=2)
-		# bfile.write(str(breakfast).replace("\'", "\""))	# replace single with double so it's proper JSON
 	with open(happyhour_fullpath, "w") as hfile:
 		json.dump(happyhour, hfile, indent=2)
-		# hfile.write(str(happyhour).replace("\'", "\""))	# replace single with double so it's proper JSON
 
 if __name__ == "__main__":
 	main()

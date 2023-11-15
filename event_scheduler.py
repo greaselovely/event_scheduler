@@ -43,7 +43,8 @@ bf = breakfast hh = happy hour
 
 
 
-local_path = pathlib.Path(__file__).parent
+local_path = pathlib.Path(__file__).parent / "event_files"
+local_path.mkdir(parents=True, exist_ok=True)
 breakfast_fullpath = pathlib.Path.joinpath(local_path, breakfast_filename)
 happyhour_fullpath = pathlib.Path.joinpath(local_path, happyhour_filename)
 excel_fullpath = pathlib.Path.joinpath(local_path, events_excel)
@@ -182,7 +183,7 @@ def generate_combined_ics():
 	today = datetime.now()
 	output_filename = f'{ics_calendar_file}_{today.strftime("%m-%d-%Y")}.ics'
 	ical_path_obj = pathlib.Path(ical_path)
-	output_file_path = ical_path_obj.joinpath(output_filename)
+	output_file_path = local_path.joinpath(output_filename)
 	combined_calendar = Calendar()
 
 	ics_files = [f for f in ical_path_obj.glob("*.ics")]
@@ -199,6 +200,8 @@ def generate_combined_ics():
 
 	with open(output_file_path, "wb") as output_file:
 		output_file.write(combined_calendar.to_ical())
+	
+	ical_path.rmdir()
 
 
 
